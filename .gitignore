@@ -1,0 +1,27 @@
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+venv_old/
+.venv/
+
+# Sensitive identity-analysis crops
+cropped_images/
+
+# Generated reports and temporary outputs
+output/
+outputs/
+reports/
+tmp/
+.spreadsheet_tmp/
+
+# Local backups and editor settings
+backups/
+.vscode/
