@@ -34,6 +34,15 @@ class OpenApiContractTests(unittest.TestCase):
             "#/components/schemas/DocumentCheckResponse",
         )
 
+    def test_document_check_accepts_base64_json_request(self) -> None:
+        operation = app.openapi()["paths"]["/v1/document/check"]["post"]
+        request_content = operation["requestBody"]["content"]
+        self.assertEqual(set(request_content), {"application/json"})
+        self.assertEqual(
+            request_content["application/json"]["schema"]["$ref"],
+            "#/components/schemas/DocumentCheckRequest",
+        )
+
     def test_health_payload_reports_model_version(self) -> None:
         self.assertEqual(
             health_check(),

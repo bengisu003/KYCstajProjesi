@@ -92,20 +92,44 @@ FastAPI arayüzleri:
 
 `POST /v1/document/check`
 
-`multipart/form-data` içindeki `frame` alanına bir ön veya arka yüz JPEG/PNG görüntüsü yüklenir. Kullanıcı yüz veya gerçek/fotokopi etiketi göndermez.
+Endpoint `application/json` gövdesinde Base64 kodlanmış bir ön veya arka yüz JPEG/PNG görüntüsü alır. Kullanıcı yüz veya gerçek/fotokopi etiketi göndermez.
 
-Örnek `curl` isteği:
+Örnek JSON:
 
-```bash
-curl -X POST "http://127.0.0.1:8000/v1/document/check" \
-  -F "frame=@card.jpg"
+```json
+{
+  "frame_base64": "/9j/4AAQSkZJRgABAQ...",
+  "media_type": "image/jpeg",
+  "filename": "card.jpg"
+}
+```
+
+`frame_base64`, yalnız Base64 içeriği veya `data:image/jpeg;base64,...` / `data:image/png;base64,...` biçiminde eşleşen bir data URL olabilir. PowerShell ile örnek istek:
+
+```powershell
+$base64 = [Convert]::ToBase64String(
+    [IO.File]::ReadAllBytes("card.jpg")
+)
+$body = @{
+    frame_base64 = $base64
+    media_type = "image/jpeg"
+    filename = "card.jpg"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+    -Method Post `
+    -Uri "http://127.0.0.1:8000/v1/document/check" `
+    -ContentType "application/json" `
+    -Body $body
 ```
 
 ### İşlem akışı
 
 ```text
-Tek görüntüyü al
-→ MIME, byte boyutu ve piksel sınırlarını kontrol et
+Base64 JSON görüntüsünü al
+→ Base64, media type ve decode edilmiş byte boyutunu kontrol et
+→ görüntüyü bellekte byte dizisine çevir
+→ piksel sınırını kontrol et
 → kartı tespit et ve 856x540 boyutuna normalize et
 → çekim kalitesini değerlendir
 → ön-yüz kanıt skorunu hesapla
@@ -157,11 +181,11 @@ Temel response alanları:
 
 Sınıflandırma veya yüz tespiti kararsızsa endpoint HTTP `200` ile `decision: "retake_required"` döndürür. Bu durum teknik hata değil, yeni çekim gerektiren bir analiz sonucudur.
 
-Dosya/istek hataları:
+İstek hataları:
 
-- Desteklenmeyen MIME türü: `415`
-- Boş dosya veya çözülemeyen görüntü: `422`
-- Boyut sınırını aşan dosya: `413`
+- Geçersiz Base64, data URL/media type uyuşmazlığı veya çözülemeyen görüntü: `422`
+- Desteklenmeyen `media_type`: `422`
+- Decode edilmiş boyut sınırını aşan görüntü: `413`
 - Crop saklama hatası: `500`
 
 ## Crop çıktıları
@@ -241,7 +265,7 @@ Test paketi; görüntü girdi korumalarını, karar sınırlarını, servis dall
 
 ## Güvenlik ve sınırlamalar
 
-- Her yükleme en fazla 10 MB ve çözüldükten sonra en fazla 16 milyon piksel olabilir.
+- Decode edilmiş her görüntü en fazla 10 MB ve 16 milyon piksel olabilir. Base64 JSON aktarımı ham dosyadan yaklaşık `%33` daha büyüktür.
 - Ham kimlik görüntüleri ayrı dosyalar olarak saklanmaz veya loglanmaz.
 - Crop dosyaları kimlik görüntüsü içerdiği için hassas veri kabul edilmelidir.
 - `cropped_images` klasörü Git'e veya herkese açık deployment paketine eklenmemelidir.
