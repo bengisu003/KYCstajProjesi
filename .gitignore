@@ -25,3 +25,5 @@ tmp/
 # Local backups and editor settings
 backups/
 .vscode/
+# Local tests
+tests/
