@@ -3,7 +3,6 @@
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 
 from api.document_check_endpoints import router as document_check_router
@@ -17,9 +16,9 @@ app = FastAPI(
     title="Identity Card Verification Services",
     version=MODEL_VERSION,
     description=(
-        "Upload one identity-card image for side and real/photocopy risk "
-        "analysis, or perform static hologram checks. "
-        "Uploaded image bytes are analyzed in memory."
+        "Submit one Base64-encoded identity-card image for side and "
+        "real/photocopy risk analysis, or perform an authorized static "
+        "hologram check. Image bytes are decoded and analyzed in memory."
     ),
     openapi_tags=[
         {
@@ -46,36 +45,15 @@ app.include_router(document_check_router)
 app.include_router(hologram_router)
 
 
-def custom_openapi() -> dict[str, object]:
-    """Generate OpenAPI without operation summary fields."""
-    if app.openapi_schema:
-        return app.openapi_schema
-    schema = get_openapi(
-        title=app.title,
-        version=app.version,
-        description=app.description,
-        routes=app.routes,
-        tags=app.openapi_tags,
-    )
-    for path_item in schema.get("paths", {}).values():
-        if not isinstance(path_item, dict):
-            continue
-        for operation in path_item.values():
-            if isinstance(operation, dict):
-                operation.pop("summary", None)
-    app.openapi_schema = schema
-    return schema
-
-
-app.openapi = custom_openapi
-
-
 @app.exception_handler(Exception)
 async def unexpected_exception_handler(
     _request: Request, exception: Exception
 ) -> JSONResponse:
     """Return a safe response without logging identity image content."""
-    logger.error("Unexpected identity-analysis error: %s", type(exception).__name__)
+    logger.exception(
+        "Unexpected identity-analysis error: %s",
+        type(exception).__name__,
+    )
     return JSONResponse(
         status_code=500,
         content={"detail": "An unexpected error occurred during identity analysis."},

@@ -16,7 +16,7 @@ def analyze_hologram_card(
     warped_card: np.ndarray,
     image_size: dict[str, int],
 ) -> dict[str, object]:
-    """Analyze a perspective-corrected card already selected by comparison."""
+    """Analyze a perspective-corrected card authorized by a document session."""
     try:
         roi = extract_static_hologram_roi(warped_card)
     except (cv2.error, ValueError):

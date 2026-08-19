@@ -18,12 +18,6 @@ class OpenApiContractTests(unittest.TestCase):
             },
         )
 
-    def test_operation_summaries_are_removed(self) -> None:
-        for path_item in app.openapi()["paths"].values():
-            for operation in path_item.values():
-                if isinstance(operation, dict):
-                    self.assertNotIn("summary", operation)
-
     def test_document_check_uses_unified_response_model(self) -> None:
         operation = app.openapi()["paths"]["/v1/document/check"]["post"]
         response_schema = operation["responses"]["200"]["content"][

@@ -37,7 +37,7 @@ def detect_card(frame: np.ndarray) -> np.ndarray | None:
         if _is_better_color_recovery(frame, refined_points, recovered_points):
             return recovered_points
 
-    # An oversized, rotated front-side paper crop is unsafe to compare. Try a
+    # An oversized, rotated front-side paper crop is unsafe to classify. Try a
     # narrow flag-anchored recovery before rejecting it. Back cards do not
     # contain the red flag region used by this recovery and guard.
     if _looks_like_large_rotated_front_crop(frame, refined_points):

@@ -16,13 +16,13 @@ router = APIRouter(tags=["2. Hologram Analysis"])
     response_model=HologramResponse,
 )
 
-# Cookie'deki karşılaştırma kimliğiyle tek kullanımlık hologram
-# servisini çağırır
+# Cookie'deki document session kimliğiyle tek kullanımlık hologram
+# servisini çağırır.
 async def check_hologram(
     request: Request,
     response: Response,
 ) -> dict[str, object]:
-    """Analyze the real front-card crop cached by the latest browser comparison."""
+    """Analyze the real front-card crop cached by the document session."""
     try:
         document_session_id = request.cookies.get(HOLOGRAM_SESSION_COOKIE, "")
         result = await run_in_threadpool(
