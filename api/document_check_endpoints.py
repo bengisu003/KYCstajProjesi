@@ -1,12 +1,10 @@
 """HTTP endpoint for unified single-image document classification."""
 
-from pathlib import Path
-
-from fastapi import APIRouter, File, HTTPException, Response, UploadFile
+from fastapi import APIRouter, HTTPException, Response
 from starlette.concurrency import run_in_threadpool
 
-from api.image_uploads import read_upload_bytes
-from api.models import DocumentCheckResponse
+from api.image_uploads import decode_base64_image
+from api.models import DocumentCheckRequest, DocumentCheckResponse
 from core.config import COOKIE_SAMESITE, COOKIE_SECURE, HOLOGRAM_SESSION_COOKIE
 from core.exceptions import CropSaveError
 from infrastructure.vision.card import InvalidFrameError
@@ -21,16 +19,20 @@ router = APIRouter(tags=["1. Document Analysis"])
     response_model=DocumentCheckResponse,
 )
 async def check_document(
+    payload: DocumentCheckRequest,
     response: Response,
-    frame: UploadFile = File(
-        ...,
-        description="Front- or back-side identity-card image.",
-    ),
 ) -> dict[str, object]:
     """Detect the card side, then estimate real/photocopy evidence."""
     try:
-        source_filename = Path(frame.filename or "frame").name
-        frame_bytes = await read_upload_bytes(frame)
+        submitted_filename = (payload.filename or "frame").strip()
+        source_filename = (
+            submitted_filename.replace("\\", "/").rsplit("/", 1)[-1]
+            or "frame"
+        )
+        frame_bytes = decode_base64_image(
+            payload.frame_base64,
+            payload.media_type,
+        )
         result = await run_in_threadpool(
             classify_document,
             frame_bytes,

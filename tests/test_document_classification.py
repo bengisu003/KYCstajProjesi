@@ -80,7 +80,7 @@ class DocumentClassificationTests(unittest.TestCase):
             ) as save_crop,
             patch(
                 "services.document_classification.register_real_candidate",
-                return_value="comparison-token",
+                return_value="document-session-token",
             ) as register,
         ):
             result = classify_document(b"frame", "front.jpg")

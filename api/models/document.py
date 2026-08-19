@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from api.models.common import CaptureQuality, ImageSize
 
@@ -10,6 +10,19 @@ from api.models.common import CaptureQuality, ImageSize
 class SavedCardCrop(BaseModel):
     sample_id: str
     card_crop: str
+
+
+class DocumentCheckRequest(BaseModel):
+    """Base64-encoded identity-card image submitted as JSON."""
+
+    frame_base64: str = Field(
+        min_length=1,
+        description=(
+            "Raw Base64 image content or a matching JPEG/PNG data URL."
+        ),
+    )
+    media_type: Literal["image/jpeg", "image/png"]
+    filename: str | None = Field(default=None, max_length=255)
 
 
 class DocumentCheckResponse(BaseModel):

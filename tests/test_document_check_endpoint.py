@@ -1,14 +1,13 @@
 """Endpoint tests for unified single-image document classification."""
 
-from io import BytesIO
+import base64
 import unittest
 from unittest.mock import patch
 
-from fastapi import HTTPException, Response, UploadFile
-from starlette.datastructures import Headers
+from fastapi import HTTPException, Response
 
 from api.document_check_endpoints import check_document
-from api.models import DocumentCheckResponse
+from api.models import DocumentCheckRequest, DocumentCheckResponse
 from core.config import DOCUMENT_SESSION_TTL_SECONDS, HOLOGRAM_SESSION_COOKIE
 from core.exceptions import CropSaveError
 from infrastructure.vision.card import InvalidFrameError
@@ -17,16 +16,19 @@ from services.document.response_builder import (
 )
 
 
-def _upload(
-    content: bytes = b"image-bytes",
+JPEG_BYTES = b"\xff\xd8\xffimage-bytes"
+
+
+def _payload(
+    content: bytes = JPEG_BYTES,
     *,
     filename: str = "card.jpg",
-    content_type: str = "image/jpeg",
-) -> UploadFile:
-    return UploadFile(
-        BytesIO(content),
+    media_type: str = "image/jpeg",
+) -> DocumentCheckRequest:
+    return DocumentCheckRequest(
+        frame_base64=base64.b64encode(content).decode("ascii"),
         filename=filename,
-        headers=Headers({"content-type": content_type}),
+        media_type=media_type,
     )
 
 
@@ -71,12 +73,12 @@ class DocumentCheckEndpointTests(unittest.IsolatedAsyncioTestCase):
             return_value=service_result,
         ) as classify:
             result = await check_document(
+                payload=_payload(filename="../uploads/card.jpg"),
                 response=response,
-                frame=_upload(filename="../uploads/card.jpg"),
             )
 
         DocumentCheckResponse(**result)
-        classify.assert_called_once_with(b"image-bytes", "card.jpg")
+        classify.assert_called_once_with(JPEG_BYTES, "card.jpg")
         set_cookie = response.headers["set-cookie"]
         self.assertIn(
             f"{HOLOGRAM_SESSION_COOKIE}=document-session-token", set_cookie
@@ -96,22 +98,26 @@ class DocumentCheckEndpointTests(unittest.IsolatedAsyncioTestCase):
             "api.document_check_endpoints.classify_document",
             return_value=service_result,
         ):
-            await check_document(response=response, frame=_upload())
+            await check_document(payload=_payload(), response=response)
 
         set_cookie = response.headers["set-cookie"]
         self.assertIn(f'{HOLOGRAM_SESSION_COOKIE}=""', set_cookie)
         self.assertIn("Max-Age=0", set_cookie)
         self.assertIn("Path=/v1/hologram", set_cookie)
 
-    async def test_unsupported_upload_is_rejected_before_service_call(self) -> None:
-        upload = _upload(content_type="text/plain")
+    async def test_invalid_base64_is_rejected_before_service_call(self) -> None:
+        payload = DocumentCheckRequest(
+            frame_base64="not-valid-base64!",
+            filename="card.jpg",
+            media_type="image/jpeg",
+        )
         with (
             patch("api.document_check_endpoints.classify_document") as classify,
             self.assertRaises(HTTPException) as raised,
         ):
-            await check_document(response=Response(), frame=upload)
+            await check_document(payload=payload, response=Response())
 
-        self.assertEqual(raised.exception.status_code, 415)
+        self.assertEqual(raised.exception.status_code, 422)
         classify.assert_not_called()
 
     async def test_invalid_frame_error_is_mapped_to_422(self) -> None:
@@ -122,7 +128,7 @@ class DocumentCheckEndpointTests(unittest.IsolatedAsyncioTestCase):
             ),
             self.assertRaises(HTTPException) as raised,
         ):
-            await check_document(response=Response(), frame=_upload())
+            await check_document(payload=_payload(), response=Response())
 
         self.assertEqual(raised.exception.status_code, 422)
         self.assertEqual(raised.exception.detail, "invalid image")
@@ -135,7 +141,7 @@ class DocumentCheckEndpointTests(unittest.IsolatedAsyncioTestCase):
             ),
             self.assertRaises(HTTPException) as raised,
         ):
-            await check_document(response=Response(), frame=_upload())
+            await check_document(payload=_payload(), response=Response())
 
         self.assertEqual(raised.exception.status_code, 500)
         self.assertEqual(raised.exception.detail, "crop failed")

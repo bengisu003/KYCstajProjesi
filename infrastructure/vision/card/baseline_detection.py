@@ -120,7 +120,7 @@ def _detect_card_baseline(frame: np.ndarray) -> np.ndarray | None:
 
     # Preserve the original fast detector above. The more expensive fallback
     # only runs when every existing path fails, so successful baseline crops
-    # and the downstream comparison score remain unchanged.
+    # and the downstream classification score remain unchanged.
     return _detect_card_from_multichannel_fallback(frame)
 
 
